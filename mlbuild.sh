@@ -6,8 +6,8 @@
 # Default TARGET kernel is LTS 5.16.7 so:
 
 KMAJOR=5
-KMINOR=16
-KPATCH=7
+KMINOR=14
+KPATCH=21
 
 # Current TEMPLATE / SPEC file to patch is 5.14.21
 
@@ -21,10 +21,12 @@ MIRROR=https://mirrors.edge.kernel.org/pub/linux/kernel
 # GCOV=gcov.
 GCOV=
 
-ELVER=el8
-[[ $(uname -r | grep -q '.el9.') ]] && ELVER=el9
-[[ $(uname -r | grep -q '.el8.') ]] && ELVER=el8
-[[ $(uname -r | grep -q '.el7.') ]] && ELVER=el7
+ELVER=elU
+if [[ -f /etc/redhat-release ]] ; then
+	if grep -q 'release 9' /etc/redhat-release ; then ELVER=el9; fi
+	if grep -q 'release 8' /etc/redhat-release ; then ELVER=el8; fi
+	if grep -q 'release 7' /etc/redhat-release ; then ELVER=el7; fi
+fi
 
 myprog_help()
 {
@@ -36,7 +38,7 @@ myprog_help()
 	echo " --minor <version>  -- kernel minor version (default ${KMINOR})"
 	echo " --patch <version>  -- patch version (default ${KPATCH})"
 	echo " --gcov [gcov.]     -- build/expect coverage enabled (default '${GCOV}')"
-	echo " --os <elN>         -- specify OS major release (default '${ELVER}'"
+	echo " --os <elN>         -- specify OS major release (default '${ELVER}')"
 	echo ""
 	echo "Ex:"
 	echo "./mlbuild.sh --major 5 --minor 14 --patch 21 --gcov gcov."
@@ -110,7 +112,6 @@ while [ "${1}" ] ; do
 done
 
 SPEC_VERSION=${SPEC_MAJOR}.${SPEC_MINOR}.${SPEC_PATCH}
-
 RPM_BASE=kernel-${SPEC_VERSION}-1.${GCOV}ldiskfs.${ELVER}.nosrc.rpm
 if [[ ! -f ${RPM_BASE} ]] ; then
 	echo Missing ${RPM_BASE}
