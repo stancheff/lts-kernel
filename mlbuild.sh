@@ -110,7 +110,13 @@ while [ "${1}" ] ; do
 done
 
 SPEC_VERSION=${SPEC_MAJOR}.${SPEC_MINOR}.${SPEC_PATCH}
-rpm -ivh kernel-${SPEC_VERSION}-1.${GCOV}ldiskfs.${ELVER}.nosrc.rpm
+
+RPM_BASE=kernel-${SPEC_VERSION}-1.${GCOV}ldiskfs.${ELVER}.nosrc.rpm
+if [[ ! -f ${RPM_BASE} ]] ; then
+	echo Missing ${RPM_BASE}
+	exit 3
+fi
+rpm -ivh ${RPM_BASE}
 
 HERE=${PWD}
 KVERSION=${KMAJOR}.${KMINOR}.${KPATCH}
