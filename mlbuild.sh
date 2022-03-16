@@ -6,14 +6,14 @@
 # Default TARGET kernel is LTS 5.16.7 so:
 
 KMAJOR=5
-KMINOR=14
-KPATCH=21
+KMINOR=17
+KPATCH=2
 
 # Current TEMPLATE / SPEC file to patch is 5.14.21
 
 SPEC_MAJOR=5
-SPEC_MINOR=14
-SPEC_PATCH=21
+SPEC_MINOR=17
+SPEC_PATCH=2
 
 MIRROR=https://mirrors.edge.kernel.org/pub/linux/kernel
 # + v5.x/
@@ -39,6 +39,10 @@ myprog_help()
 	echo " --patch <version>  -- patch version (default ${KPATCH})"
 	echo " --gcov [gcov.]     -- build/expect coverage enabled (default '${GCOV}')"
 	echo " --os <elN>         -- specify OS major release (default '${ELVER}')"
+	echo " --without <arg>    -- passed to rpmbuild"
+	echo "                       Ex: --without bpftool --without doc"
+	echo "                           --without tools --without perf"
+	echo " --with <arg>       -- passed to rpmbuild"
 	echo ""
 	echo "Ex:"
 	echo "./mlbuild.sh --major 5 --minor 14 --patch 21 --gcov gcov."
@@ -99,6 +103,15 @@ while [ "${1}" ] ; do
 			fi
 			shift
 			;;
+		--with|--without)
+			switch="${1}"
+			shift
+			if [[ ! "${1}" ]] ; then
+				error_out 2 "Argument requried for ${switch}" >&2
+			fi
+			RWITH="${RWITH} ${switch} ${1}"
+			shift
+			;;
 		--help)
 			myprog_help
 			exit 0
@@ -112,6 +125,7 @@ while [ "${1}" ] ; do
 done
 
 SPEC_VERSION=${SPEC_MAJOR}.${SPEC_MINOR}.${SPEC_PATCH}
+
 RPM_BASE=kernel-${SPEC_VERSION}-1.${GCOV}ldiskfs.${ELVER}.nosrc.rpm
 if [[ ! -f ${RPM_BASE} ]] ; then
 	echo Missing ${RPM_BASE}
@@ -147,4 +161,5 @@ sed -i -e "s/LKAver ${SPEC_VERSION}/LKAver ${KVERSION}/" \
   ${HOME}/rpmbuild/SPECS/kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec
 
 cd ${HOME}/rpmbuild/SPECS
-rpmbuild -ba kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec
+echo rpmbuild -ba kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec ${RWITH}
+rpmbuild -ba kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec ${RWITH}
