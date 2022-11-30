@@ -5,21 +5,24 @@
 
 # Default TARGET kernel is LTS 5.16.7 so:
 
-KMAJOR=5
-KMINOR=17
-KPATCH=2
+KMAJOR=6
+KMINOR=0
+KPATCH=9
 
 # Current TEMPLATE / SPEC file to patch is 5.14.21
-
-SPEC_MAJOR=5
-SPEC_MINOR=17
-SPEC_PATCH=2
+SPEC_MAJOR=6
+SPEC_MINOR=0
+SPEC_PATCH=9
+# SPEC_BUILD=1
 
 MIRROR=https://mirrors.edge.kernel.org/pub/linux/kernel
 # + v5.x/
 
 # GCOV=gcov.
 GCOV=
+
+RWITH=${RPMBUILD_OPT}
+RDEF=
 
 ELVER=elU
 if [[ -f /etc/redhat-release ]] ; then
@@ -34,15 +37,21 @@ myprog_help()
 	echo $'\n'"Builds kernel package of linux kernel"
 	echo $'\n'"Available options:"
 	echo " --mirror <url>     -- kernel.org mirror to use"
-	echo " --major <version>  -- kernel major version (default ${KMAJOR})"
-	echo " --minor <version>  -- kernel minor version (default ${KMINOR})"
-	echo " --patch <version>  -- patch version (default ${KPATCH})"
+	echo " --major <version>  -- kernel major version [default ${KMAJOR}]"
+	echo " --minor <version>  -- kernel minor version [default ${KMINOR}]"
+	echo " --patch <version>  -- patch version [default ${KPATCH}]"
+	echo " --build <number>   -- build number [default None]"
 	echo " --gcov [gcov.]     -- build/expect coverage enabled (default '${GCOV}')"
 	echo " --os <elN>         -- specify OS major release (default '${ELVER}')"
 	echo " --without <arg>    -- passed to rpmbuild"
 	echo "                       Ex: --without bpftool --without doc"
 	echo "                           --without tools --without perf"
 	echo " --with <arg>       -- passed to rpmbuild"
+	if [ "x$RWITH" != "x" ] ; then
+	echo "              ---> '$RWITH'"
+	fi
+	echo " --define <arg>     -- passed to rpmbuild"
+	echo "                       Ex: --define '%dist my_tag'"
 	echo ""
 	echo "Ex:"
 	echo "./mlbuild.sh --major 5 --minor 14 --patch 21 --gcov gcov."
@@ -84,6 +93,20 @@ while [ "${1}" ] ; do
 			KPATCH="${1}"
 			shift
 			;;
+		--build)
+			shift
+			if [[ ! "${1}" ]] ; then
+				error_out 2 "Please provide the target kernel build number --build" >&2
+			fi
+			KBUILD="${1}"
+			if [[ $KBUILD == "+1" ]]; then
+				_val=$(cat _kernel_build)
+				KBUILD=$((_val + 1))
+			fi
+			echo "$KBUILD" '>' _kernel_build
+			echo "$KBUILD" > _kernel_build
+			shift
+			;;
 		--os)
 			shift
 			if [[ ! "${1}" ]] ; then
@@ -112,6 +135,15 @@ while [ "${1}" ] ; do
 			RWITH="${RWITH} ${switch} ${1}"
 			shift
 			;;
+		--define)
+			switch="${1}"
+			shift
+			if [[ ! "${1}" ]] ; then
+				error_out 2 "Argument requried for ${switch}" >&2
+			fi
+			RDEF="${RDEF} ${switch} '${1}'"
+			shift
+			;;
 		--help)
 			myprog_help
 			exit 0
@@ -124,8 +156,16 @@ while [ "${1}" ] ; do
 	esac
 done
 
-SPEC_VERSION=${SPEC_MAJOR}.${SPEC_MINOR}.${SPEC_PATCH}
+WGET=$(which wget)
+if [[ -z ${WGET} ]] ; then
+	echo "Missing wget."
+	exit 3
+fi
 
+SPEC_VERSION=${SPEC_MAJOR}.${SPEC_MINOR}.${SPEC_PATCH}
+if [[ -n ${SPEC_BUILD} ]] ; then
+	SPEC_VERSION="${SPEC_VERSION}.${SPEC_BUILD}"
+fi
 RPM_BASE=kernel-${SPEC_VERSION}-1.${GCOV}ldiskfs.${ELVER}.nosrc.rpm
 if [[ ! -f ${RPM_BASE} ]] ; then
 	echo Missing ${RPM_BASE}
@@ -138,8 +178,21 @@ KVERSION=${KMAJOR}.${KMINOR}.${KPATCH}
 KSRC=linux-${KVERSION}
 KTARBALL=${KSRC}.tar.xz
 mkdir -p .cache
+if [[ -n ${KBUILD} ]] ; then
+	KVERSION="${KVERSION}.${KBUILD}"
+	echo cd ${HOME}
+	cd ${HOME}
+	echo tar cf --exclude-vcs ${HERE}/linux.tar linux
+	tar --exclude-vcs -cf ${HERE}/linux.tar linux
+	echo cd ${HERE}
+	cd ${HERE}
+	echo mv -v linux.tar .cache
+	mv -v linux.tar .cache
+	KSRC=linux
+	KTARBALL=${KSRC}.tar
+fi 
 if [[ -f .cache/${KTARBALL} ]] ; then
-	cp .cache/${KTARBALL} .
+	cp -v .cache/${KTARBALL} .
 else
 	echo wget ${MIRROR}/v${KMAJOR}.x/${KTARBALL}
 	wget ${MIRROR}/v${KMAJOR}.x/${KTARBALL}
@@ -147,19 +200,41 @@ else
 fi
 echo tar xf ${KTARBALL}
 tar xf ${KTARBALL}
+if [[ -n ${KBUILD} ]] ; then
+	echo mv linux linux-${KVERSION}
+	mv linux linux-${KVERSION}
+	KSRC=linux-${KVERSION}
+	KTARBALL=${KSRC}.tar.xz
+fi
 echo make oldconfig from ${HOME}/rpmbuild/SOURCES/config-${SPEC_VERSION}-x86_64
+echo cp ${HOME}/rpmbuild/SOURCES/config-${SPEC_VERSION}-x86_64 ${KSRC}/.config
 cp ${HOME}/rpmbuild/SOURCES/config-${SPEC_VERSION}-x86_64 ${KSRC}/.config
+echo cd ${KSRC}
 cd ${KSRC}
+echo yes "" '|' make oldconfig
 yes "" | make oldconfig
-cp .config ${HOME}/rpmbuild/SOURCES/config-${KMAJOR}.${KMINOR}.${KPATCH}-x86_64
+echo cp .config ${HOME}/rpmbuild/SOURCES/config-${KVERSION}-x86_64
+cp .config ${HOME}/rpmbuild/SOURCES/config-${KVERSION}-x86_64
+echo cd ..
 cd ..
+if [[ -n ${KBUILD} ]] ; then
+	KSRC=linux-${KVERSION}
+	KTARBALL=${KSRC}.tar.xz
+	echo tar cf linux-${KVERSION}.tar ${KSRC}
+	tar cf linux-${KVERSION}.tar ${KSRC}
+	echo xz --threads=0 linux-${KVERSION}.tar
+	xz --threads=0 linux-${KVERSION}.tar
+fi
 rm -fr ${KSRC}
 mv ${KTARBALL} ${HOME}/rpmbuild/SOURCES
 echo Patching spec for ${KVERSION}
+echo cd ${HOME}/rpmbuild/SPECS
+cd ${HOME}/rpmbuild/SPECS
+echo cp kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec kernel-${KVERSION}+${GCOV}ldiskfs.spec
+cp kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec kernel-${KVERSION}+${GCOV}ldiskfs.spec
 sed -i -e "s/LKAver ${SPEC_VERSION}/LKAver ${KVERSION}/" \
        -e "s/{LKAver}.${SPEC_PATCH}/{LKAver}.${KPATCH}/" \
-  ${HOME}/rpmbuild/SPECS/kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec
-
-cd ${HOME}/rpmbuild/SPECS
-echo rpmbuild -ba kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec ${RWITH}
-rpmbuild -ba kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec ${RWITH}
+          kernel-${KVERSION}+${GCOV}ldiskfs.spec
+echo rpmbuild ${RDEF} ${RWITH} -ba kernel-${KVERSION}+${GCOV}ldiskfs.spec
+rpmbuild ${RDEF} ${RWITH} -ba kernel-${KVERSION}+${GCOV}ldiskfs.spec
+cd ${HERE}
