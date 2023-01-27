@@ -7,12 +7,12 @@
 
 KMAJOR=6
 KMINOR=1
-KPATCH=7
+KPATCH=9
 
 # Current TEMPLATE / SPEC file to patch is 5.14.21
 SPEC_MAJOR=6
 SPEC_MINOR=1
-SPEC_PATCH=7
+SPEC_PATCH=8
 # SPEC_BUILD=1
 
 MIRROR=https://mirrors.edge.kernel.org/pub/linux/kernel
@@ -215,6 +215,7 @@ echo yes "" '|' make oldconfig
 yes "" | make oldconfig
 echo cp .config ${HOME}/rpmbuild/SOURCES/config-${KVERSION}-x86_64
 cp .config ${HOME}/rpmbuild/SOURCES/config-${KVERSION}-x86_64
+touch ${HOME}/rpmbuild/SOURCES/config-${KVERSION}-aarch64
 echo cd ..
 cd ..
 if [[ -n ${KBUILD} ]] ; then
@@ -230,8 +231,8 @@ mv ${KTARBALL} ${HOME}/rpmbuild/SOURCES
 echo Patching spec for ${KVERSION}
 echo cd ${HOME}/rpmbuild/SPECS
 cd ${HOME}/rpmbuild/SPECS
-echo cp kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec kernel-${KVERSION}+${GCOV}ldiskfs.spec
-cp kernel-${SPEC_MAJOR}.${SPEC_MINOR}+${GCOV}ldiskfs.spec kernel-${KVERSION}+${GCOV}ldiskfs.spec
+echo cp kernel-${SPEC_VERSION}+${GCOV}ldiskfs.spec kernel-${KVERSION}+${GCOV}ldiskfs.spec
+cp kernel-${SPEC_VERSION}+${GCOV}ldiskfs.spec kernel-${KVERSION}+${GCOV}ldiskfs.spec
 sed -i -e "s/LKAver ${SPEC_VERSION}/LKAver ${KVERSION}/" \
        -e "s/{LKAver}.${SPEC_PATCH}/{LKAver}.${KPATCH}/" \
           kernel-${KVERSION}+${GCOV}ldiskfs.spec
