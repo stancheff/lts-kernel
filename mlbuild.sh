@@ -6,13 +6,13 @@
 # Default TARGET kernel is LTS 5.16.7 so:
 
 KMAJOR=6
-KMINOR=1
-KPATCH=9
+KMINOR=6
+KPATCH=1
 
 # Current TEMPLATE / SPEC file to patch is 5.14.21
 SPEC_MAJOR=6
-SPEC_MINOR=1
-SPEC_PATCH=8
+SPEC_MINOR=6
+SPEC_PATCH=1
 # SPEC_BUILD=1
 
 MIRROR=https://mirrors.edge.kernel.org/pub/linux/kernel
