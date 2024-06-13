@@ -54,7 +54,7 @@ myprog_help()
 	echo "                       Ex: --define '%dist my_tag'"
 	echo ""
 	echo "Ex:"
-	echo "./mlbuild.sh --major 5 --minor 14 --patch 21 --gcov gcov."
+	echo "./mlbuild.sh --major ${KMAJOR} --minor ${KMINOR} --patch ${KPATCH} $RWITH"
 	echo ""
 }
 
